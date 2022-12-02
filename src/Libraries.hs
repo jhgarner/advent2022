@@ -1,5 +1,6 @@
 module Libraries (module All) where
 
+import Control.Applicative as All (liftA2)
 import Control.Comonad as All
 import Control.Zipper as All
 import Data.Char as All

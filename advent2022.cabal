@@ -20,6 +20,9 @@ library
   exposed-modules:
       Lib
       Libraries
+      Parser
+      PartA
+      PartB
   other-modules:
       Paths_advent2022
   hs-source-dirs:
