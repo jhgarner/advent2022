@@ -1,4 +1,4 @@
-module Libraries (module All) where
+module Libraries (traceShowId, module All) where
 
 import Control.Applicative as All (liftA2)
 import Control.Comonad as All
@@ -16,3 +16,7 @@ import Text.Megaparsec as All
 import Text.Megaparsec.Char as All hiding (space)
 import Text.Megaparsec.Char.Lexer as All
 import Prelude as All
+import Debug.Trace (trace)
+
+traceShowId :: Show a => a -> a
+traceShowId a = trace (show a) a

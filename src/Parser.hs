@@ -2,14 +2,9 @@ module Parser where
 
 import Libraries
 
-data RPC = Rock | Paper | Scissors
-  deriving Eq
-
-data Winner = Them | Draw | You
-
-data Fight a = Fight a a
-
-
-type Problem = [Fight Char]
+type Problem = [(String, String)]
 parser :: ParsecT Void Text IO Problem
-parser = liftA2 Fight (anySingle <* hspace) anySingle `sepEndBy` newline
+parser = (halves <$> some letterChar) `sepEndBy` newline
+
+halves :: String -> (String, String)
+halves ls = splitAt (length ls `div` 2) ls
