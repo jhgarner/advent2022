@@ -5,11 +5,12 @@ import Parser
 import PartA
 
 partB :: Problem -> IO Int
-partB input = return $ groups $ fmap combine input
+partB input = return $ sum $ fmap anyOverlap input
 
-combine = uncurry (++)
-
-groups :: [[Char]] -> Int
-groups (x : y : z : rest) = sum (scoreLetter <$> nub (x `intersect` y `intersect` z)) + groups rest
-groups [] = 0
-groups xs = error $ show xs
+anyOverlap :: (Elf, Elf) -> Int
+anyOverlap ((start1, end1), (start2, end2))
+  | start1 >= start2 && start1 <= end2 = 1
+  | end1 >= start2 && end1 <= end2 = 1
+  | start2 >= start1 && start2 <= end1 = 1
+  | end2 >= start1 && end2 <= end1 = 1
+  | otherwise = 0
