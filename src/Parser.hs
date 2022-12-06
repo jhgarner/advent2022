@@ -1,27 +1,55 @@
+{-# LANGUAGE RecordWildCards #-}
 module Parser where
 
 import Libraries
+import Data.Maybe (catMaybes)
 
-type Elf = (Int, Int)
+type Docks = [[Char]]
 
-type Problem = [(Elf, Elf)]
+type Problem = (Docks, [Move])
+
+data Move = Move
+  { times :: Int,
+    from :: Int,
+    to :: Int
+  }
 
 parser :: ParsecT Void Text IO Problem
-parser = pair `sepEndBy` newline
+parser = do
+  docks <- dockStart
+  (hspace >> decimal >> hspace) `sepBy` hspace
+  newline >> newline
+  moves <- steps
+  pure (docks, moves)
 
-pair :: ParsecT Void Text IO (Elf, Elf)
-pair = do
-  first <- elf
-  char ','
-  second <- elf
-  return (first, second)
+crate :: ParsecT Void Text IO Char
+crate = char '[' *> letterChar <* char ']'
 
-elf :: ParsecT Void Text IO Elf
-elf = do
-  start <- decimal
-  char '-'
-  end <- decimal
-  return (start, end)
+air :: ParsecT Void Text IO (Maybe a)
+air = string "   " $> Nothing
 
-halves :: String -> (String, String)
-halves ls = splitAt (length ls `div` 2) ls
+crateOrAir :: ParsecT Void Text IO (Maybe Char)
+crateOrAir = air <|> fmap Just crate
+
+rowOfCrates :: ParsecT Void Text IO [Maybe Char]
+rowOfCrates = crateOrAir `sepBy` char ' '
+
+rowsOfCrates :: ParsecT Void Text IO [[Maybe Char]]
+rowsOfCrates = rowOfCrates `sepBy` newline
+
+dockStart :: ParsecT Void Text IO [[Char]]
+dockStart = fmap catMaybes . transpose <$> rowsOfCrates
+
+
+steps :: ParsecT Void Text IO [Move]
+steps = step `sepEndBy` newline
+
+step :: ParsecT Void Text IO Move
+step = do
+  string "move "
+  times <- decimal
+  string " from "
+  from <- fmap pred decimal
+  string " to "
+  to <- fmap pred decimal
+  pure Move {..}

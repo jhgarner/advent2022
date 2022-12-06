@@ -1,13 +1,20 @@
+{-# LANGUAGE RecordWildCards #-}
 module PartA where
 
 import Libraries
 import Parser
+import Control.Lens (element, (%~), (&), (.~))
 
-partA :: Problem -> IO Int
-partA input = return $ sum $ fmap handlePair input
+partA :: Problem -> IO String
+partA (start, moves) = do 
+  print $ unlines start
+  return $ head <$> foldl' (flip act) start moves
 
-handlePair :: (Elf, Elf) -> Int
-handlePair ((start1, end1), (start2, end2))
-  | start1 >= start2 && end1 <= end2 = 1
-  | start2 >= start1 && end2 <= end1 = 1
-  | otherwise = 0
+act :: Move -> Docks -> Docks
+act Move{times = 0} docks = docks
+act move@Move{..} docks = act move{times = times-1} $ switch from to docks
+
+switch :: Int -> Int -> Docks -> Docks
+switch from to docks =
+  let (top:rest) = docks !! from
+   in docks & element from .~ rest & element to %~ (top :)

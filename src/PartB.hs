@@ -1,16 +1,19 @@
+{-# LANGUAGE RecordWildCards #-}
 module PartB where
 
 import Libraries
 import Parser
 import PartA
+import Control.Lens.Operators
+import Control.Lens.Combinators
 
-partB :: Problem -> IO Int
-partB input = return $ sum $ fmap anyOverlap input
+partB :: Problem -> IO String
+partB (start, moves) = do 
+  print $ unlines start
+  return $ head <$> foldl' (flip actB) start moves
 
-anyOverlap :: (Elf, Elf) -> Int
-anyOverlap ((start1, end1), (start2, end2))
-  | start1 >= start2 && start1 <= end2 = 1
-  | end1 >= start2 && end1 <= end2 = 1
-  | start2 >= start1 && start2 <= end1 = 1
-  | end2 >= start1 && end2 <= end1 = 1
-  | otherwise = 0
+actB :: Move -> Docks -> Docks
+actB Move{times = 0} docks = docks
+actB move@Move{..} docks =
+  let (top, rest) = times `splitAt` (docks !! from)
+   in docks & element from .~ rest & element to %~ (top ++)
