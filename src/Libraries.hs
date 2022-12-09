@@ -1,4 +1,4 @@
-module Libraries (traceShowId, module All) where
+module Libraries (traceShowId, Parse, module All) where
 
 import Control.Applicative as All (liftA2)
 import Control.Comonad as All
@@ -19,4 +19,6 @@ import Prelude as All
 import Debug.Trace (trace)
 
 traceShowId :: Show a => a -> a
-traceShowId a = trace (show a) a
+traceShowId a = trace (show a ++ "\n") a
+
+type Parse a = ParsecT Void Text IO a
