@@ -2,7 +2,14 @@ module Parser where
 
 import Libraries
 
-type Problem = [[Int]]
+data Direction = R | U | L | D
+type Problem = [(Direction, Int)]
 
 parser :: Parse Problem
-parser = many (digitToInt <$> numberChar) `sepBy` newline
+parser = line `sepEndBy` newline
+
+line :: Parse (Direction, Int)
+line = (,) <$> direction <*> (hspace *> decimal)
+
+direction :: Parse Direction
+direction = choice [char 'R' $> R, char 'U' $> U, char 'D' $> D, char 'L' $> L]

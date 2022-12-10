@@ -1,58 +1,58 @@
 module PartB where
 
-import Libraries
-import Parser
--- import PartA
+import Control.Arrow (Arrow (first))
+import Control.Category ((>>>))
+import Control.Lens ((&))
 import Data.Coerce (coerce)
-import Data.Map (elems)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromMaybe)
+import Data.Set (Set, fromList, insert)
+import Libraries hiding (insert, lookup)
+import Parser
+import Data.Bifunctor
 
-partB :: Problem -> IO (Max Int)
-partB input = pure $ mconcat $ mconcat $ checkAllTrees input
+partB :: Problem -> IO Int
+partB input = pure $ howManyVisited $ foldl' action (fromList [(0, 0)], replicate 10 (0, 0)) input
 
+type Position = (Int, Int)
 
-checkAllTrees :: [[Int]] -> [[Max Int]]
-checkAllTrees grid = (\(y, row) -> (\(x, _) -> coerce $ checkDirs grid (x, y)) <$> zip [0..] row) <$> zip [0..] grid
+type World = (Set Position, [Position])
 
+howManyVisited :: World -> Int
+howManyVisited (visited, _) = length visited
 
-type Dir = (Int, Int) -> (Int, Int)
-up :: Dir
-up (x, y) = (x, y+1)
-down :: Dir
-down (x, y) = (x, y-1)
-right :: Dir
-right (x, y) = (x+1, y)
-left :: Dir
-left (x, y) = (x-1, y)
+addPos :: World -> World
+addPos (set, knots) = (insert (last knots) set, knots)
 
-dirs :: [Dir]
-dirs = [up, down, left, right]
+action :: World -> (Direction, Int) -> World
+action world (_, 0) = world
+action world (dir, n) = action (addPos $ stepIn dir world) (dir, n - 1)
 
-checkDirs :: [[Int]] -> (Int, Int) -> Product Int
-checkDirs grid loc =
-  let height = fromJust $ grid `at` loc
-   in foldMap (checkDir height loc grid) dirs
+stepIn :: Direction -> World -> World
+stepIn dir = moveTail . moveHead dir
 
-checkDir :: Int -> (Int, Int) -> [[Int]] -> Dir -> Product Int
-checkDir height loc grid dir =
-  case grid `at` dir loc of
-    Just target ->
-      if target >= height
-         then 1
-         else 1 + checkDir height (dir loc) grid dir
-    Nothing -> 0
+moveHead :: Direction -> World -> World
+moveHead U (visited, (x, y):tail) = (visited, (x, y + 1):tail)
+moveHead D (visited, (x, y):tail) = (visited, (x, y - 1):tail)
+moveHead L (visited, (x, y):tail) = (visited, (x - 1, y):tail)
+moveHead R (visited, (x, y):tail) = (visited, (x + 1, y):tail)
+moveHead _ (_, _) = error "Bad"
 
-at :: [[Int]] -> (Int, Int) -> Maybe Int
-at grid (x, y) = grid `atRow` y >>= (`atRow` x)
+moveTail :: World -> World
+moveTail (visited, []) = error "bad"
+moveTail (visited, [x]) = (visited, [x])
+moveTail (visited, head:tail:rest) = (head:) <$> moveTail (visited, approach tail head:rest)
 
-atRow :: [a]  -> Int -> Maybe a
-atRow row x
-  | x < 0 || x >= length row = Nothing
-  | otherwise = Just $ row !! x
+dir :: Int -> Int -> Int
+dir a b
+  | a < b = a + 1
+  | a > b = a - 1
+  | otherwise = a
 
+approach :: Position -> Position -> Position
+approach tail head
+  | dist tail head >= 2 = bimap (dir (fst tail)) (dir (snd tail)) head
+  | otherwise = tail
 
--- isVisible :: (Int -> (Bool, Int) -> (Int, (Bool, Int))
--- isVisible tallest (visible, height) =
---   if height > tallest
---      then (height, (True, height))
---      else (tallest, (visible, height))
+dist :: Position -> Position -> Float
+dist (a, b) (x, y) =
+  sqrt $ (fromIntegral a - fromIntegral x) ** 2 + (fromIntegral b - fromIntegral y) ** 2
