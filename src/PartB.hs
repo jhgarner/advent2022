@@ -1,58 +1,64 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module PartB where
 
 import Control.Arrow (Arrow (first))
 import Control.Category ((>>>))
-import Control.Lens ((&))
+import Control.Lens (makeLenses, over, (&))
+import Data.Bifunctor
 import Data.Coerce (coerce)
 import Data.Maybe (fromMaybe)
 import Data.Set (Set, fromList, insert)
 import Libraries hiding (insert, lookup)
 import Parser
-import Data.Bifunctor
+import Data.List.Split (chunksOf)
 
-partB :: Problem -> IO Int
-partB input = pure $ howManyVisited $ foldl' action (fromList [(0, 0)], replicate 10 (0, 0)) input
+partB :: Problem -> IO String
+partB input = pure $ drawCrt $ toAscii <$> runCrt (initMachine input) initCrt
 
-type Position = (Int, Int)
+drawCrt :: String -> String
+drawCrt drawn =
+  unlines $ chunksOf 40 drawn
 
-type World = (Set Position, [Position])
+toAscii :: Bool -> Char
+toAscii True = '#'
+toAscii False = '.'
 
-howManyVisited :: World -> Int
-howManyVisited (visited, _) = length visited
+data Machine = Machine
+  { register :: Int,
+    remaining :: Int,
+    op :: Op,
+    code :: [Op]
+  }
+  deriving (Show)
 
-addPos :: World -> World
-addPos (set, knots) = (insert (last knots) set, knots)
+data Crt = Crt [Bool] Int
 
-action :: World -> (Direction, Int) -> World
-action world (_, 0) = world
-action world (dir, n) = action (addPos $ stepIn dir world) (dir, n - 1)
+initCrt :: Crt
+initCrt = Crt [] 0
 
-stepIn :: Direction -> World -> World
-stepIn dir = moveTail . moveHead dir
+runCrt :: Machine -> Crt -> [Bool]
+runCrt _ (Crt drawn 240) = reverse drawn
+runCrt machine (Crt drawn toDraw) =
+  let newMachine = stepMachine machine
+   in runCrt newMachine $
+    Crt (isDrawn newMachine toDraw : drawn) (toDraw+1)
 
-moveHead :: Direction -> World -> World
-moveHead U (visited, (x, y):tail) = (visited, (x, y + 1):tail)
-moveHead D (visited, (x, y):tail) = (visited, (x, y - 1):tail)
-moveHead L (visited, (x, y):tail) = (visited, (x - 1, y):tail)
-moveHead R (visited, (x, y):tail) = (visited, (x + 1, y):tail)
-moveHead _ (_, _) = error "Bad"
+isDrawn :: Machine -> Int -> Bool
+isDrawn Machine {..} at = abs (register - (at `mod` 40)) <= 1
 
-moveTail :: World -> World
-moveTail (visited, []) = error "bad"
-moveTail (visited, [x]) = (visited, [x])
-moveTail (visited, head:tail:rest) = (head:) <$> moveTail (visited, approach tail head:rest)
+initMachine :: [Op] -> Machine
+initMachine code = Machine {register = 1, remaining = 0, op = Noop, code = code ++ repeat Noop}
 
-dir :: Int -> Int -> Int
-dir a b
-  | a < b = a + 1
-  | a > b = a - 1
-  | otherwise = a
+stepMachine :: Machine -> Machine
+stepMachine machine@Machine {..}
+  | remaining == 0 = Machine {register = opOnRegister op register, remaining = timeToRun $ head code, op = head code, code = tail code}
+  | otherwise = machine {remaining = remaining - 1}
 
-approach :: Position -> Position -> Position
-approach tail head
-  | dist tail head >= 2 = bimap (dir (fst tail)) (dir (snd tail)) head
-  | otherwise = tail
+opOnRegister :: Op -> Int -> Int
+opOnRegister Noop r = r
+opOnRegister (Addx x) r = x + r
 
-dist :: Position -> Position -> Float
-dist (a, b) (x, y) =
-  sqrt $ (fromIntegral a - fromIntegral x) ** 2 + (fromIntegral b - fromIntegral y) ** 2
+timeToRun :: Op -> Int
+timeToRun Noop = 0
+timeToRun (Addx _) = 1

@@ -1,4 +1,4 @@
-module Libraries (traceShowId, Parse, module All) where
+module Libraries (traceShowId, traceWithContext, Parse, num, module All) where
 
 import Control.Applicative as All (liftA2)
 import Control.Comonad as All
@@ -21,4 +21,13 @@ import Debug.Trace (trace)
 traceShowId :: Show a => a -> a
 traceShowId a = trace (show a ++ "\n") a
 
+traceWithContext :: (Show a, Show b) => b -> a -> a
+traceWithContext b a = trace (show (a, b) ++ "\n") a
+
 type Parse a = ParsecT Void Text IO a
+
+negative :: Parse Int
+negative = char '-' >> fmap negate decimal
+
+num :: Parse Int
+num = negative <|> decimal

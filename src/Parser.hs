@@ -2,14 +2,19 @@ module Parser where
 
 import Libraries
 
-data Direction = R | U | L | D
-type Problem = [(Direction, Int)]
+data Op = Noop | Addx Int
+  deriving (Show)
+
+type Problem = [Op]
 
 parser :: Parse Problem
 parser = line `sepEndBy` newline
 
-line :: Parse (Direction, Int)
-line = (,) <$> direction <*> (hspace *> decimal)
+line :: Parse Op
+line = noop <|> addx
 
-direction :: Parse Direction
-direction = choice [char 'R' $> R, char 'U' $> U, char 'D' $> D, char 'L' $> L]
+noop :: Parse Op
+noop = string "noop" $> Noop
+
+addx :: Parse Op
+addx = fmap Addx $ string "addx" >> hspace >> num

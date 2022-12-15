@@ -53,6 +53,7 @@ library
     , megaparsec
     , monad-memo
     , recursion-schemes
+    , split
     , text
     , zippers
   default-language: Haskell2010
@@ -91,6 +92,7 @@ executable advent2022-exe
     , megaparsec
     , monad-memo
     , recursion-schemes
+    , split
     , text
     , zippers
   default-language: Haskell2010

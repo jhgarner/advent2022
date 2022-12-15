@@ -31,6 +31,7 @@ dependencies:
 - zippers
 - lens
 - monad-memo
+- split
 
 default-extensions:
 - GADTs
