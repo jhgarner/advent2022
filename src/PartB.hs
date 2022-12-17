@@ -4,61 +4,46 @@ module PartB where
 
 import Control.Arrow (Arrow (first))
 import Control.Category ((>>>))
-import Control.Lens (makeLenses, over, (&))
+import Control.Lens (element, makeLenses, over, (&))
+import Control.Lens.Operators ((%~))
 import Data.Bifunctor
 import Data.Coerce (coerce)
 import Data.Maybe (fromMaybe)
 import Data.Set (Set, fromList, insert)
 import Libraries hiding (insert, lookup)
 import Parser
-import Data.List.Split (chunksOf)
 
-partB :: Problem -> IO String
-partB input = pure $ drawCrt $ toAscii <$> runCrt (initMachine input) initCrt
+partB :: Problem -> IO Integer
+partB input = pure $ product $ take 2 $ reverse $ sort $ numInspected <$> runNTimes 10000 input
 
-drawCrt :: String -> String
-drawCrt drawn =
-  unlines $ chunksOf 40 drawn
+divBys :: Problem -> Int
+divBys = product . fmap divBy
 
-toAscii :: Bool -> Char
-toAscii True = '#'
-toAscii False = '.'
+runNTimes :: Int -> Problem -> Problem
+runNTimes 0 jungle = jungle
+runNTimes n jungle = runNTimes (n - 1) $ runSteps jungle
 
-data Machine = Machine
-  { register :: Int,
-    remaining :: Int,
-    op :: Op,
-    code :: [Op]
-  }
-  deriving (Show)
+runSteps :: Problem -> Problem
+runSteps jungle = fst $ mapAccumL (\jungle i -> (runMonkeyAt jungle i, ())) jungle [0 .. length jungle - 1]
 
-data Crt = Crt [Bool] Int
+runMonkeyAt :: Problem -> Int -> Problem
+runMonkeyAt start i =
+  runMonkey start (start !! i)
+    & element i %~ \monkey ->
+      monkey
+        { items = [],
+          numInspected = numInspected monkey + fromIntegral (length (items monkey))
+        }
 
-initCrt :: Crt
-initCrt = Crt [] 0
+runMonkey :: Problem -> Monkey -> Problem
+runMonkey jungle Monkey {items = []} = jungle
+runMonkey start Monkey {items = myItems, ..} = foldl' runItem start myItems
+  where
+    runItem jungle item =
+      let newWorry = applyOp operation item (maybe item fromIntegral rhs) `mod` fromIntegral (divBys jungle)
+          to = if newWorry `mod` fromIntegral divBy == 0 then ifTrue else ifFalse
+       in jungle & element to %~ \monkey -> monkey {items = newWorry : items monkey}
 
-runCrt :: Machine -> Crt -> [Bool]
-runCrt _ (Crt drawn 240) = reverse drawn
-runCrt machine (Crt drawn toDraw) =
-  let newMachine = stepMachine machine
-   in runCrt newMachine $
-    Crt (isDrawn newMachine toDraw : drawn) (toDraw+1)
-
-isDrawn :: Machine -> Int -> Bool
-isDrawn Machine {..} at = abs (register - (at `mod` 40)) <= 1
-
-initMachine :: [Op] -> Machine
-initMachine code = Machine {register = 1, remaining = 0, op = Noop, code = code ++ repeat Noop}
-
-stepMachine :: Machine -> Machine
-stepMachine machine@Machine {..}
-  | remaining == 0 = Machine {register = opOnRegister op register, remaining = timeToRun $ head code, op = head code, code = tail code}
-  | otherwise = machine {remaining = remaining - 1}
-
-opOnRegister :: Op -> Int -> Int
-opOnRegister Noop r = r
-opOnRegister (Addx x) r = x + r
-
-timeToRun :: Op -> Int
-timeToRun Noop = 0
-timeToRun (Addx _) = 1
+applyOp :: Op -> Integer -> Integer -> Integer
+applyOp P = (+)
+applyOp M = (*)

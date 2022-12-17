@@ -4,7 +4,8 @@ module PartA where
 
 import Control.Arrow (Arrow (first))
 import Control.Category ((>>>))
-import Control.Lens (makeLenses, over, (&))
+import Control.Lens (element, makeLenses, over, (&))
+import Control.Lens.Operators ((%~))
 import Data.Bifunctor
 import Data.Coerce (coerce)
 import Data.Maybe (fromMaybe)
@@ -12,47 +13,34 @@ import Data.Set (Set, fromList, insert)
 import Libraries hiding (insert, lookup)
 import Parser
 
-partA :: Problem -> IO Int
-partA input = pure $ combine signalsToCheck $ checkAt signalsToCheck $ initMachine $ traceShowId input
+partA :: Problem -> IO Integer
+partA input = pure $ product $ take 2 $ reverse $ sort $ numInspected <$> runNTimes 20 input
 
-combine :: [Int] -> [Int] -> Int
-combine times registers = sum $ zipWith (*) registers $ totals times
+runNTimes :: Int -> Problem -> Problem
+runNTimes 0 jungle = jungle
+runNTimes n jungle = runNTimes (n - 1) $ runSteps jungle
 
-totals :: [Int] -> [Int]
-totals = snd . mapAccumL (\at x -> (at+x, at+x)) 0
+runSteps :: Problem -> Problem
+runSteps jungle = fst $ mapAccumL (\jungle i -> (runMonkeyAt jungle i, ())) jungle [0 .. length jungle - 1]
 
-checkAt :: [Int] -> Machine -> [Int]
-checkAt [] _ = []
-checkAt (0 : rest) machine = register machine : checkAt rest machine
-checkAt toCheck machine = checkAt (approach toCheck) $ stepMachine machine
+runMonkeyAt :: Problem -> Int -> Problem
+runMonkeyAt start i =
+  runMonkey start (start !! i)
+    & element i %~ \monkey ->
+      monkey
+        { items = [],
+          numInspected = numInspected monkey + fromIntegral (length (items monkey))
+        }
 
-approach :: [Int] -> [Int]
-approach [] = error "Bad thing"
-approach (x : xs) = x - 1 : xs
+runMonkey :: Problem -> Monkey -> Problem
+runMonkey jungle Monkey {items = []} = jungle
+runMonkey start Monkey {items = myItems, ..} = foldl' runItem start myItems
+  where
+    runItem jungle item =
+      let newWorry = applyOp operation item (maybe item fromIntegral rhs) `div` 3
+          to = if newWorry `mod` fromIntegral divBy == 0 then ifTrue else ifFalse
+       in jungle & element to %~ \monkey -> monkey {items = newWorry : items monkey}
 
-signalsToCheck :: [Int]
-signalsToCheck = [20, 40, 40, 40, 40, 40]
-
-data Machine = Machine
-  { register :: Int,
-    remaining :: Int,
-    op :: Op,
-    code :: [Op]
-  }
-  deriving (Show)
-
-initMachine :: [Op] -> Machine
-initMachine code = Machine {register = 1, remaining = 0, op = Noop, code = code ++ repeat Noop}
-
-stepMachine :: Machine -> Machine
-stepMachine machine@Machine {..}
-  | remaining == 0 = Machine {register = opOnRegister op register, remaining = timeToRun $ head code, op = head code, code = tail code}
-  | otherwise = machine {remaining = remaining - 1}
-
-opOnRegister :: Op -> Int -> Int
-opOnRegister Noop r = r
-opOnRegister (Addx x) r = x + r
-
-timeToRun :: Op -> Int
-timeToRun Noop = 0
-timeToRun (Addx _) = 1
+applyOp :: Op -> Integer -> Integer -> Integer
+applyOp P = (+)
+applyOp M = (*)

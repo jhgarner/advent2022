@@ -26,8 +26,8 @@ traceWithContext b a = trace (show (a, b) ++ "\n") a
 
 type Parse a = ParsecT Void Text IO a
 
-negative :: Parse Int
+negative :: Num n => Parse n
 negative = char '-' >> fmap negate decimal
 
-num :: Parse Int
+num :: Num n => Parse n
 num = negative <|> decimal

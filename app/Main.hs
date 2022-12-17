@@ -10,4 +10,4 @@ main = do
   parsedE <- T.getContents >>= runParserT parser ""
   let parsed = either (error . errorBundlePretty) id parsedE
   partA parsed >>= print
-  partB parsed >>= Prelude.putStrLn
+  partB parsed >>= print
